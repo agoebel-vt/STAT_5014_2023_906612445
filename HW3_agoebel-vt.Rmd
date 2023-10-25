@@ -2,29 +2,269 @@
 title: "HW3_agoebel-vt"
 author: "Alex Goebel"
 date: "2023-10-24"
-output: pdf_document
+output:
+  pdf_document: default
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r}
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
 ```
 
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+# Part A
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+Ten parts were selected randomly from a line and duplicate measurements of the part’s wall thickness were taken by each of three operators of the measurement apparatus. Click on the link and you will see the data in your browser.
 
-```{r cars}
-summary(cars)
+```{r}
+col_names = c("Part", "Op1_Col1", "Op1_Col2", "Op2_Col1", 
+              "Op2_Col2", "Op3_Col1", "Op3_Col2")
+
+url1 = "https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/ThicknessGauge.dat"
+wall_raw = read.table(url1, col.names = col_names, header = F, skip = 2, 
+                       fill = T, stringsAsFactors = F)
+
 ```
 
-## Including Plots
+Now we need to do our pivot longer.
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+wall_cleaned = pivot_longer(wall_raw, cols = 
+                    c("Op1_Col1", "Op1_Col2", "Op2_Col1", 
+                      "Op2_Col2", "Op3_Col1", "Op3_Col2"),
+                    names_to = "Operator",
+                    values_to = "Thickness")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Then, we do the last bit of clean up
+
+```{r}
+wall_cleaned = arrange(wall_cleaned, Operator)
+wall_cleaned$Operator = rep(c(1,2,3), each = 20)
+```
+
+
+
+Now for our summary and plot
+
+```{r}
+summary(wall_cleaned)
+
+wall_cleaned %>%
+  group_by(Operator) %>%
+  summarize(mean = mean(Thickness), n = n())
+```
+
+The mean Thickness does not change much between Operators, other than an ever so slight increase.
+
+
+```{r}
+
+ggplot(wall_cleaned, aes(x= Part, y = Thickness, col = Operator)) + geom_point()
+
+```
+There does not seem to be much of a relationship between Part and Thickness. Operator looks like it could have a slight effect on thickness in the graph, but we know it does not seem to vary much from our summary. Non-constant variance may be an issue.
+
+
+# Part B
+
+Brain weight (g) and body weight (kg) for 62 species.
+
+```{r}
+
+url2 = "https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/BrainandBodyWeight.dat"
+weight_raw = read.table(url2, header = F, skip = 1, fill = T, stringsAsFactors = F)
+
+weight_cleaned = data.frame("Body_Wt" = c(weight_raw$V1, weight_raw$V3, weight_raw$V5),
+                            "Brain_Wt" = c(weight_raw$V2, weight_raw$V4, weight_raw$V6))
+
+```
+
+This dataset looks a lot better, however, the last row is empty.
+
+```{r}
+weight_cleaned = weight_cleaned[1:62,]
+head(weight_cleaned)
+```
+
+
+Now our dataset is cleaned. There do not seem to be any issues with the dataset.
+
+
+Next up is the summary, and plot.
+
+```{r}
+summary(weight_cleaned)
+
+ggplot(weight_cleaned, aes(x= Brain_Wt, y = Body_Wt)) + geom_point()
+
+```
+There definitely seem to be some potential influential points that could heavily skew the data. It also looks like a non-linear relationship.
+
+# Part C
+
+Gold Medal performance for Olympic Men’s Long Jump, year is coded as 1900=0. Goodness, ragged arrays. Check out fread in the data.table package.
+
+```{r}
+
+url3 = "https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/LongJumpData.dat"
+longjump_raw = read.table(url3, header = F, skip = 1, fill = T, stringsAsFactors = F)
+
+```
+
+This dataset runs into pretty much the same issue as the previous one.
+
+```{r}
+longjump_cleaned = data.frame("Year" = c(longjump_raw$V1, longjump_raw$V3, 
+                                         longjump_raw$V5, longjump_raw$V7),
+                              "Long_Jump" = c(longjump_raw$V2, longjump_raw$V4, 
+                                              longjump_raw$V6, longjump_raw$V8))
+
+head(longjump_cleaned)
+
+```
+
+If we are going to have the first column be the year, we should work with the actual year rather than the coded version.
+
+```{r}
+
+for (i in 1:length(longjump_cleaned$Year)){
+  longjump_cleaned$Year[i] = longjump_cleaned$Year[i] + 1900
+  
+}
+
+```
+
+Of course, we again need to remove the empty values.
+
+```{r}
+
+longjump_cleaned = longjump_cleaned[1:22,]
+
+```
+
+Last, but not least, we do our summary and plot.
+
+```{r}
+summary(longjump_cleaned)
+
+ggplot(longjump_cleaned, aes(x= Year, y = Long_Jump)) + geom_point()
+
+```
+The first chronological point may be an influential point. Other than that there seems to be a positive correlation with long jump distance over time.
+
+# Part D
+
+Triplicate measurements of tomato yield for two varieties of tomatos at three planting densities.
+
+```{r}
+col_names2 = c("Variety", "1000", "2000", "3000")
+
+url4 = "https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/tomato.dat"
+tomatoes_raw = read.table(url4, col.names = col_names2 , header = F, skip = 2, fill = T)
+```
+
+This dataset doesn't read in properly, so I will manually edit it to be the correct starting point.
+
+```{r}
+typeof(tomatoes_raw[2,2])
+
+tomatoes_raw[1,1] = "Ife/#1"
+tomatoes_raw[1,2] = "16.1,15.3,17.5"
+tomatoes_raw[1,3] = "16.6,19.2,18.5"
+tomatoes_raw[1,4] = "20.8,18.0,21.0"
+
+```
+
+This is now the correct raw dataset. Time to split each data point into its own cell.
+```{r}
+
+tomatoes_cleaned = tomatoes_raw %>%
+  separate(col = "X1000", into = c("D10000_1", "D10000_2", "D10000_3"), sep = ",") %>%
+  separate(col = "X2000", into = c("D20000_1", "D20000_2", "D20000_3"), sep = ",") %>%
+  separate(col = "X3000", into = c("D30000_1", "D30000_2", "D30000_3"), sep = ",")
+
+head(tomatoes_cleaned)
+```
+That threw an error, but the dataset was correct so I am going to stick with it.
+
+Now we will use pivot_longer to make the individual observations rows.
+
+```{r}
+tomatoes_cleaned = pivot_longer(tomatoes_cleaned, cols = 
+                      c("D10000_1", "D10000_2", "D10000_3", "D20000_1", "D20000_2", "D20000_3", "D30000_1", "D30000_2", "D30000_3"),
+                    names_to = "Plant_Density",
+                    values_to = "Yield")
+tomatoes_cleaned$Plant_Density = rep(c(10000,20000,30000), each = 3, times = 2)
+
+tomatoes_cleaned$Yield = as.integer(tomatoes_cleaned$Yield)
+
+```
+
+Lastly, we do the summary and plot.
+
+```{r}
+
+summary(tomatoes_cleaned)
+
+tomatoes_cleaned %>%
+  group_by(Variety) %>%
+  summarize(mean = mean(Yield), n = n())
+```
+Ife has a much higher mean yield than Pusa Early Dwarf.
+
+```{r}
+ggplot(tomatoes_cleaned, aes(x= Plant_Density, y = Yield, col = Variety)) + geom_point()
+
+```
+It looks like there is a positive correlation between Density and Yield. As mentioned, Ife clearly has higher yield than Pusa Early Dwarf.
+
+
+# Part E
+
+Larvae counts at two ages given 5 different treatments in 8 blocks.
+
+```{r}
+col_names3 = c("Block", "A1T1", "A1T2", "A1T3", "A1T4", "A1T5", "A2T1", "A2T2", "A2T3", "A2T4", "A2T5")
+
+url5 = "https://www2.isye.gatech.edu/~jeffwu/wuhamadabook/data/LarvaeControl.dat"
+larvae_raw = read.table(url5, col.names = col_names3, skip = 3, fill = T, stringsAsFactors = F)
+
+
+```
+
+Again, we use a pivot longer. Note that we use Treatment as the column name when age and treatment are combined. This will be fixed.
+
+```{r}
+larvae_cleaned = pivot_longer(larvae_raw, cols = c("A1T1", "A1T2", "A1T3", "A1T4", "A1T5", "A2T1", "A2T2", "A2T3", "A2T4", "A2T5"),
+                              names_to = "Treatment",
+                              values_to = "Larvae_Counts")
+```
+
+Now we separate Age and Treatment
+
+```{r}
+larvae_cleaned$Treatment = rep(c(1,2,3,4,5), times = 16)
+larvae_cleaned$Age = rep(c(1,2), each = 5, times = 8)
+```
+
+Now we do the last summary and plot
+
+```{r}
+summary(larvae_cleaned)
+
+larvae_cleaned %>%
+  group_by(Treatment) %>%
+  summarize(mean = mean(Larvae_Counts), n = n())
+```
+There is a lot of variance in the mean larvae count between treatments, there does not seem to be a correlation.
+
+```{r}
+ggplot(larvae_cleaned, aes(x= Block, y = Larvae_Counts, col = Age)) + geom_point()
+
+
+```
+The relationship between Larvae Counts and Block is clearly not linear. It also looks like age 2 produces higher larvae counts than age 1. Non-constant variance again seems like it could be an issue.
